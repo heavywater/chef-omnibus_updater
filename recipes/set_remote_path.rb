@@ -1,4 +1,15 @@
+# TODO: Replace #end_with?
+
+require 'rexml/document'
+require 'open-uri'
+
 # RULES
+
+omnibus_version = node[:omnibus_updater][:version]
+unless(omnibus_version)
+  doc = REXML::Document.new(open(node[:omnibus_updater][:base_uri]))
+  keys = REXML::XPath.match(doc, '//Key').map(&:text)
+end
 
 platform_name = node.platform
 case node.platform_family
@@ -48,16 +59,23 @@ else
 end
 case install_via
 when 'deb'
-  file_name = "chef-full_#{node[:omnibus_updater][:version]}_"
-  if(node.kernel.machine.include?('64'))
-    file_name << 'amd64'
+  arch = node.kernel.machine.include?('64') ? 'amd64' : 'i386'
+  if(node[:omnibus_updater][:version])
+    file_name = "chef-full_#{node[:omnibus_updater][:version]}_#{arch}.deb"
   else
-    file_name << 'i386'
+    file_name = keys.find_all{|k| 
+      k.include?(arch) && k.include?('chef-full') && k.end_with?('.deb') && k.include?(platform_name)
+    }.sort.last.split('/').last
   end
-  file_name << '.deb'
 
 when 'rpm'
-  file_name = "chef-full-#{node[:omnibus_updater][:version]}.#{node.kernel.machine}.rpm"
+  if(node[:omnibus_updater][:version])
+    file_name = "chef-full-#{node[:omnibus_updater][:version]}.#{node.kernel.machine}.rpm"
+  else
+    file_name = keys.find_all{|k| 
+      k.include?(node.kernel.machine) && k.include?('chef-full') && k.end_with?('.rpm') && k.include?(platform_name)
+    }.sort.last.split('/').last
+  end
 else
   file_name = "chef-full-#{node[:omnibus_updater][:version]}-#{platform_name}-#{platform_version}-#{node.kernel.machine}.sh"
 end

@@ -1,3 +1,0 @@
-cookbook "omnibus_updater" do
-  runtimes []
-end
